@@ -23,6 +23,7 @@
     "jsonwebtoken": "^9.0.2",
     "localtunnel": "^2.0.2",
     "mongoose": "^7.6.3",
+    "node-cron": "^4.2.1",
     "node-telegram-bot-api": "^0.66.0"
   },
   "devDependencies": {

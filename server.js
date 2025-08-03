@@ -13,18 +13,18 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.set('trust proxy', 1);
 
-// CORS sozlamalarini yangilash
-app.use(
-  cors({
-    origin:
-      process.env.NODE_ENV === 'production'
-        ? ['https://yourdomain.com']
-        : ['http://localhost:3000', 'http://127.0.0.1:3000'],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
-);
+// // CORS sozlamalarini yangilash
+// app.use(
+//   cors({
+//     origin:
+//       process.env.NODE_ENV === 'production'
+//         ? ['https://yourdomain.com']
+//         : ['http://localhost:3000', 'http://127.0.0.1:3000'],
+//     credentials: true,
+//     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+//     allowedHeaders: ['Content-Type', 'Authorization'],
+//   })
+// );
 
 // Rate limiting (package.json ga express-rate-limit qo'shish kerak)
 const rateLimit = require('express-rate-limit');
@@ -39,37 +39,37 @@ const limiter = rateLimit({
 
 app.use('/api/', limiter);
 
-// Updated Helmet configuration for Alpine.js and development
-app.use(
-  helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        styleSrc: [
-          "'self'",
-          "'unsafe-inline'",
-          'https://cdnjs.cloudflare.com',
-          'https://fonts.googleapis.com',
-        ],
-        scriptSrc: [
-          "'self'",
-          "'unsafe-inline'",
-          "'unsafe-eval'", // Required for Alpine.js
-          'https://unpkg.com',
-          'https://cdn.jsdelivr.net',
-        ],
-        imgSrc: ["'self'", 'data:', 'https:'],
-        fontSrc: [
-          "'self'",
-          'https://cdnjs.cloudflare.com',
-          'https://fonts.gstatic.com',
-        ],
-        connectSrc: ["'self'"],
-      },
-    },
-    crossOriginEmbedderPolicy: false,
-  })
-);
+// // Updated Helmet configuration for Alpine.js and development
+// app.use(
+//   helmet({
+//     contentSecurityPolicy: {
+//       directives: {
+//         defaultSrc: ["'self'"],
+//         styleSrc: [
+//           "'self'",
+//           "'unsafe-inline'",
+//           'https://cdnjs.cloudflare.com',
+//           'https://fonts.googleapis.com',
+//         ],
+//         scriptSrc: [
+//           "'self'",
+//           "'unsafe-inline'",
+//           "'unsafe-eval'", // Required for Alpine.js
+//           'https://unpkg.com',
+//           'https://cdn.jsdelivr.net',
+//         ],
+//         imgSrc: ["'self'", 'data:', 'https:'],
+//         fontSrc: [
+//           "'self'",
+//           'https://cdnjs.cloudflare.com',
+//           'https://fonts.gstatic.com',
+//         ],
+//         connectSrc: ["'self'"],
+//       },
+//     },
+//     crossOriginEmbedderPolicy: false,
+//   })
+// );
 
 // JSON parsing with error handling
 app.use(

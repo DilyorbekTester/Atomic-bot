@@ -24,35 +24,6 @@ function checkRateLimit(userId) {
   return true;
 }
 
-// Yaxshilangan emoji xaritasi
-const GRADE_EMOJIS = {
-  5: '5️⃣',
-  4: '4️⃣',
-  3: '3️⃣',
-  2: '2️⃣',
-  1: '1️⃣',
-};
-
-const SUBJECT_EMOJIS = {
-  'Ona tili': '📝',
-  Adabiyot: '📚',
-  Matematika: '🔢',
-  Algebra: '📊',
-  Geometriya: '📐',
-  Fizika: '⚛️',
-  Kimyo: '🧪',
-  Biologiya: '🧬',
-  Tarix: '🏛️',
-  'Jahon tarixi': '🌍',
-  Geografiya: '🗺️',
-  'Ingliz tili': '🇬🇧',
-  'Rus tili': '🇷🇺',
-  Tarbiya: '💝',
-  'Jismoniy tarbiya': '🏃‍♂️',
-  Informatika: '💻',
-  ChQBT: '🛡️',
-};
-
 // API so'rov yordamchisi
 async function makeApiCall(endpoint) {
   try {
@@ -69,84 +40,11 @@ async function makeApiCall(endpoint) {
   }
 }
 
-// Yaxshilangan formatlovchi funksiyalar
-function formatDailyGrades(grades) {
-  if (!grades || grades.length === 0) {
-    return '📊 Bugun baholar berilmagan';
-  }
-
-  let result = `📊 Kunlik baholar\n${formatDate(grades[0].date)}\n\n`;
-
-  grades[0].grades.forEach((gradeEntry, index) => {
-    const emoji = SUBJECT_EMOJIS[gradeEntry.subject] || '📖';
-    const gradeEmoji = GRADE_EMOJIS[gradeEntry.grade] || gradeEntry.grade;
-
-    result += `${index + 1} - ${gradeEntry.subject} — ${gradeEmoji}`;
-    if (gradeEntry.notes) {
-      result += ` (${gradeEntry.notes})`;
-    }
-    result += '\n';
-  });
-
-  // O'rtachani hisoblash
-  const average = grades[0].getDayAverage();
-  result += `\n📈 Kunlik o'rtacha: ${average}`;
-
-  return result;
-}
-
-function formatHomework(homework) {
-  if (!homework || homework.length === 0) {
-    return '📚 Uy vazifalari berilmagan';
-  }
-
-  let result = `📚 Kunlik uy vazifalari:\n${formatDate(homework[0].date)}\n\n`;
-
-  homework[0].assignments.forEach((assignment) => {
-    const emoji = SUBJECT_EMOJIS[assignment.subject] || '📖';
-    result += `${emoji} ${assignment.subject}:\n${assignment.task};\n\n`;
-  });
-
-  return result;
-}
-
-function formatDate(dateString) {
-  const date = new Date(dateString);
-  const days = [
-    'Yakshanba',
-    'Dushanba',
-    'Seshanba',
-    'Chorshanba',
-    'Payshanba',
-    'Juma',
-    'Shanba',
-  ];
-  const months = [
-    'yanvar',
-    'fevral',
-    'mart',
-    'aprel',
-    'may',
-    'iyun',
-    'iyul',
-    'avgust',
-    'sentabr',
-    'oktabr',
-    'noyabr',
-    'dekabr',
-  ];
-
-  return `${days[date.getDay()]}, ${date.getDate()} ${
-    months[date.getMonth()]
-  } ${date.getFullYear()}`;
-}
-
+// Formatlovchi funksiyalar
 function formatStudentInfo(data) {
   const student = data.student;
   const badges = data.badges || [];
   const payments = data.payments || [];
-  const grades = data.grades || [];
-  const homework = data.homework || [];
 
   let message = `✅ O'quvchi ma'lumotlari:\n\n`;
   message += `👤 Ism: ${student.user?.fullName || "Ma'lumot yo'q"}\n`;
@@ -156,16 +54,6 @@ function formatStudentInfo(data) {
     student.status
   )}\n`;
   message += `💰 Qarz: ${(student.totalDebt || 0).toLocaleString()} so'm\n\n`;
-
-  // Kunlik baholar
-  if (grades.length > 0) {
-    message += formatDailyGrades(grades) + '\n\n';
-  }
-
-  // Uy vazifalari
-  if (homework.length > 0) {
-    message += formatHomework(homework) + '\n\n';
-  }
 
   // Dars jadvali
   if (student.group?.schedule && student.group.schedule.length > 0) {
@@ -341,32 +229,54 @@ function getStatusText(status) {
   return texts[status] || status;
 }
 
-// Yaxshilangan asosiy menyu
+// Menyu generatorlari
 function getMainMenu(userSession = null) {
-  const baseMenu = [
-    ["👤 Mening ma'lumotlarim", '📊 Farzandlarim'],
-    ['📈 Kunlik baholar', '📚 Uy vazifalari'],
-    ['🏆 Badge hisoboti', "💰 To'lov holati"],
-    ['📅 Dars jadvali', "📞 Bog'lanish"],
-  ];
-
-  // Ma'lum farzandlar uchun tez kirish tugmalarini qo'shish
-  if (userSession && userSession.children && userSession.children.length > 0) {
-    const quickButtons = [];
-    userSession.children.slice(0, 2).forEach((child) => {
-      quickButtons.push(`👶 ${child.name} (${child.code})`);
-    });
-
-    if (quickButtons.length > 0) {
-      baseMenu.unshift(quickButtons);
-    }
+  if (!userSession) {
+    return {
+      reply_markup: {
+        keyboard: [
+          ["👤 Mening ma'lumotlarim"],
+          ["📞 Bog'lanish", '🔄 Yangilash'],
+        ],
+        resize_keyboard: true,
+      },
+    };
   }
 
+  const role = userSession.user.role;
+
+  if (role === 'parent') {
+    const baseMenu = [
+      ["👤 Mening ma'lumotlarim", '📊 Farzandlarim'],
+      ['🏆 Badge hisoboti', "💰 To'lov holati"],
+      ['📅 Dars jadvali', "📞 Bog'lanish"],
+    ];
+
+    // Tez kirish tugmalari
+    if (userSession.children && userSession.children.length > 0) {
+      const quickButtons = [];
+      userSession.children.slice(0, 2).forEach((child) => {
+        quickButtons.push(`👶 ${child.name} (${child.code})`);
+      });
+
+      if (quickButtons.length > 0) {
+        baseMenu.unshift(quickButtons);
+      }
+    }
+
+    return {
+      reply_markup: {
+        keyboard: baseMenu,
+        resize_keyboard: true,
+      },
+    };
+  }
+
+  // Default menu for other roles
   return {
     reply_markup: {
-      keyboard: baseMenu,
+      keyboard: [["👤 Mening ma'lumotlarim"], ["📞 Bog'lanish"]],
       resize_keyboard: true,
-      one_time_keyboard: false,
     },
   };
 }
@@ -374,44 +284,43 @@ function getMainMenu(userSession = null) {
 // Foydalanuvchi sessiyasini boshlash
 async function initializeUserSession(telegramId) {
   try {
-    // Foydalanuvchi ma'lumotlarini olish
     const userData = await makeApiCall(`/bot/${telegramId}`);
 
-    if (userData.role === 'parent') {
-      // Ota-onaning farzandlarini olish
-      const childrenData = await makeApiCall(
-        `/bot/parent/children/${telegramId}`
-      );
-
-      const session = {
-        user: userData,
-        children: childrenData.map((child) => ({
-          id: child._id,
-          name: child.user?.fullName,
-          code: child.studentCode,
-        })),
-        lastActivity: Date.now(),
-      };
-
-      userSessions.set(telegramId, session);
-      return session;
-    } else {
-      const session = {
-        user: userData,
-        children: [],
-        lastActivity: Date.now(),
-      };
-
-      userSessions.set(telegramId, session);
-      return session;
+    if (!userData.success) {
+      return null;
     }
+
+    const session = {
+      user: userData,
+      children: [],
+      lastActivity: Date.now(),
+    };
+
+    if (userData.role === 'parent') {
+      try {
+        const childrenData = await makeApiCall(
+          `/bot/parent/children/${telegramId}`
+        );
+        if (childrenData.success) {
+          session.children = childrenData.children.map((child) => ({
+            id: child._id,
+            name: child.user?.fullName,
+            code: child.studentCode,
+          }));
+        }
+      } catch (error) {
+        console.log('Children data not found for parent:', telegramId);
+      }
+    }
+
+    userSessions.set(telegramId, session);
+    return session;
   } catch (error) {
     console.error('Sessiya boshlash xatosi:', error);
     return null;
   }
 }
 
-// Foydalanuvchi sessiyasini olish
 function getUserSession(telegramId) {
   const session = userSessions.get(telegramId);
   if (session) {
@@ -421,13 +330,12 @@ function getUserSession(telegramId) {
   return null;
 }
 
-// Yaxshilangan xabar ishlovchisi
+// Asosiy xabar ishlovchisi
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
   const text = msg.text?.trim();
   const telegramId = msg.from.id.toString();
 
-  // So'rovlarni cheklash
   if (!checkRateLimit(telegramId)) {
     return bot.sendMessage(
       chatId,
@@ -441,7 +349,6 @@ bot.on('message', async (msg) => {
   console.log(`📨 Xabar: ${text} | Foydalanuvchi: ${fullName} (${telegramId})`);
 
   try {
-    // Foydalanuvchi sessiyasini olish yoki boshlash
     let userSession = getUserSession(telegramId);
     if (!userSession) {
       userSession = await initializeUserSession(telegramId);
@@ -449,34 +356,10 @@ bot.on('message', async (msg) => {
 
     // /start buyrug'i
     if (text === '/start') {
-      const welcomeMessage = userSession
-        ? `🎓 Atomic Education botiga xush kelibsiz!\n\nAssalomu alaykum ${userSession.user.fullName}! 👋\n\n`
-        : `🎓 Atomic Education botiga xush kelibsiz!\n\nAssalomu alaykum ${fullName}! 👋\n\n`;
-
-      let message = welcomeMessage;
-      message += `Bu bot orqali siz quyidagilarni amalga oshirishingiz mumkin:\n\n`;
-      message += `• 👤 Farzandingiz haqida to'liq ma'lumot olish\n`;
-      message += `• 📈 Kunlik baholarni real vaqtda kuzatish\n`;
-      message += `• 📚 Uy vazifalarini darhol bilish\n`;
-      message += `• 🏆 Badge hisobotlarini ko'rish\n`;
-      message += `• 💰 To'lov holatini nazorat qilish\n`;
-      message += `• 📅 Dars jadvalini ko'rish\n`;
-      message += `• 🔔 Muhim yangiliklar haqida xabardor bo'lish\n\n`;
-
-      if (userSession && userSession.children.length > 0) {
-        message += `👶 Sizning farzandlaringiz:\n`;
-        userSession.children.forEach((child) => {
-          message += `• ${child.name} (${child.code})\n`;
-        });
-        message += `\n💡 Tez kirish uchun pastdagi tugmalardan foydalaning!`;
-      } else {
-        message += `📝 Quyidagi tugmalardan foydalanib kerakli ma'lumotni oling:`;
-      }
-
-      return bot.sendMessage(chatId, message, getMainMenu(userSession));
+      return await handleStart(chatId, userSession, fullName);
     }
 
-    // Farzandlar uchun tez kirish
+    // Tez kirish tugmalari
     if (
       text.startsWith('👶 ') &&
       userSession &&
@@ -496,12 +379,6 @@ bot.on('message', async (msg) => {
       case '📊 Farzandlarim':
         return await showChildrenList(chatId, userSession);
 
-      case '📈 Kunlik baholar':
-        return await showGradesMenu(chatId, userSession);
-
-      case '📚 Uy vazifalari':
-        return await showHomeworkMenu(chatId, userSession);
-
       case '🏆 Badge hisoboti':
         return await showBadgeMenu(chatId, userSession);
 
@@ -513,6 +390,15 @@ bot.on('message', async (msg) => {
 
       case "📞 Bog'lanish":
         return await showContactInfo(chatId);
+
+      case '🔄 Yangilash':
+        userSessions.delete(telegramId);
+        userSession = await initializeUserSession(telegramId);
+        return bot.sendMessage(
+          chatId,
+          "✅ Ma'lumotlar yangilandi!",
+          getMainMenu(userSession)
+        );
 
       default:
         // O'quvchi kodini tekshirish
@@ -537,7 +423,48 @@ bot.on('message', async (msg) => {
   }
 });
 
-// Yaxshilangan ishlovchi funksiyalar
+// Start buyrug'ini boshqarish
+async function handleStart(chatId, userSession, fullName) {
+  const welcomeMessage = userSession
+    ? `🎓 Atomic Education botiga xush kelibsiz!\n\nAssalomu alaykum ${userSession.user.fullName}! 👋\n\n`
+    : `🎓 Atomic Education botiga xush kelibsiz!\n\nAssalomu alaykum ${fullName}! 👋\n\n`;
+
+  let message = welcomeMessage;
+
+  if (userSession) {
+    const role = userSession.user.role;
+
+    if (role === 'parent') {
+      message += `👨‍👩‍👧‍👦 Siz ota-ona sifatida kirdingiz.\n\n`;
+      message += `Bu bot orqali siz quyidagilarni amalga oshirishingiz mumkin:\n\n`;
+      message += `• 👤 Farzandingiz haqida to'liq ma'lumot olish\n`;
+      message += `• 🏆 Badge hisobotlarini ko'rish\n`;
+      message += `• 💰 To'lov holatini nazorat qilish\n`;
+      message += `• 📅 Dars jadvalini ko'rish\n`;
+      message += `• 🔔 Muhim yangiliklar haqida xabardor bo'lish\n\n`;
+
+      if (userSession.children.length > 0) {
+        message += `👶 Sizning farzandlaringiz:\n`;
+        userSession.children.forEach((child) => {
+          message += `• ${child.name} (${child.code})\n`;
+        });
+        message += `\n💡 Tez kirish uchun pastdagi tugmalardan foydalaning!`;
+      } else {
+        message += `📝 Farzandingiz ma'lumotlarini ko'rish uchun o'quvchi kodini kiriting.`;
+      }
+    } else {
+      message += `📝 Quyidagi tugmalardan foydalanib kerakli ma'lumotni oling:`;
+    }
+  } else {
+    message += `📝 Iltimos, administrator bilan bog'lanib, Telegram ID'ingizni ro'yxatdan o'tkazing.\n\n`;
+    message += `🆔 Sizning Telegram ID: ${chatId}\n\n`;
+    message += `📞 Administrator bilan bog'lanish uchun quyidagi tugmani bosing.`;
+  }
+
+  return bot.sendMessage(chatId, message, getMainMenu(userSession));
+}
+
+// Ishlovchi funksiyalar
 async function showUserInfo(chatId, userSession) {
   if (!userSession) {
     return bot.sendMessage(
@@ -554,17 +481,11 @@ async function showUserInfo(chatId, userSession) {
   };
 
   const message =
-    `👤 Sizning shaxsiy ma'lumotlaringiz:\n\n` +
-    `📝 To'liq ism: ${userSession.user.fullName}\n` +
-    `📱 Telefon: ${userSession.user.phone}\n` +
-    `👥 Lavozim: ${
-      roleText[userSession.user.role] || userSession.user.role
-    }\n` +
+    `👤 Sizning ma'lumotlaringiz:\n\n` +
+    `📝 Ism: ${userSession.user.fullName}\n` +
+    `👥 Rol: ${roleText[userSession.user.role] || userSession.user.role}\n` +
     `✅ Holat: ${userSession.user.isActive ? 'Faol' : 'Nofaol'}\n\n` +
-    `👶 Bog'langan farzandlar: ${userSession.children.length} ta\n\n` +
-    `📅 Ro'yxatdan o'tgan: ${new Date(
-      userSession.user.createdAt
-    ).toLocaleDateString('uz-UZ')}`;
+    `👶 Bog'langan farzandlar: ${userSession.children.length} ta`;
 
   return bot.sendMessage(chatId, message, getMainMenu(userSession));
 }
@@ -583,60 +504,10 @@ async function showChildrenList(chatId, userSession) {
   let message = '👶 Sizning farzandlaringiz:\n\n';
   userSession.children.forEach((child, index) => {
     message += `${index + 1}. 👤 ${child.name}\n`;
-    message += `   🆔 O'quvchi kodi: ${child.code}\n`;
-    message += `   📊 Batafsil ma'lumot: /${child.code}\n\n`;
+    message += `   🆔 O'quvchi kodi: ${child.code}\n\n`;
   });
 
-  message += "💡 Batafsil ma'lumot olish uchun:\n";
-  message += '• Farzandingiz kodini kiriting\n';
-  message += '• Yoki yuqoridagi tugmalardan foydalaning';
-
-  return bot.sendMessage(chatId, message, getMainMenu(userSession));
-}
-
-async function showGradesMenu(chatId, userSession) {
-  if (!userSession || userSession.children.length === 0) {
-    return bot.sendMessage(
-      chatId,
-      "📈 Baholarni ko'rish uchun avval farzandingiz kodini kiriting.\n\n" +
-        '💡 Masalan: 1001',
-      getMainMenu(userSession)
-    );
-  }
-
-  if (userSession.children.length === 1) {
-    // Yagona farzand uchun to'g'ridan-to'g'ri baholarni ko'rsatish
-    return await showStudentGrades(chatId, userSession.children[0].code);
-  }
-
-  let message = "📈 Qaysi farzandingizning baholarini ko'rmoqchisiz?\n\n";
-  userSession.children.forEach((child, index) => {
-    message += `${index + 1}. ${child.name} (${child.code})\n`;
-  });
-  message += '\n💡 Farzandingiz kodini kiriting:';
-
-  return bot.sendMessage(chatId, message, getMainMenu(userSession));
-}
-
-async function showHomeworkMenu(chatId, userSession) {
-  if (!userSession || userSession.children.length === 0) {
-    return bot.sendMessage(
-      chatId,
-      "📚 Uy vazifalarini ko'rish uchun avval farzandingiz kodini kiriting.\n\n" +
-        '💡 Masalan: 1001',
-      getMainMenu(userSession)
-    );
-  }
-
-  if (userSession.children.length === 1) {
-    return await showStudentHomework(chatId, userSession.children[0].code);
-  }
-
-  let message = "📚 Qaysi farzandingizning uy vazifalarini ko'rmoqchisiz?\n\n";
-  userSession.children.forEach((child, index) => {
-    message += `${index + 1}. ${child.name} (${child.code})\n`;
-  });
-  message += '\n💡 Farzandingiz kodini kiriting:';
+  message += "💡 Batafsil ma'lumot olish uchun farzandingiz kodini kiriting.";
 
   return bot.sendMessage(chatId, message, getMainMenu(userSession));
 }
@@ -645,8 +516,14 @@ async function showBadgeMenu(chatId, userSession) {
   if (!userSession || userSession.children.length === 0) {
     return bot.sendMessage(
       chatId,
-      "🏆 Badge hisobotini ko'rish uchun farzandingiz kodini kiriting.\n\n" +
-        '💡 Masalan: 1001',
+      "🏆 Badge hisobotini ko'rish uchun o'quvchi kodini kiriting:\n\n" +
+        'Masalan: STU001 yoki 1001\n\n' +
+        "📊 Hisobotda ko'rsatiladi:\n" +
+        "• Har bir badge turi bo'yicha statistika\n" +
+        '• Rangli emoji bilan badge turlari\n' +
+        "• Olingan/olinmagan badge'lar soni\n" +
+        "• Umumiy foiz ko'rsatkichi\n" +
+        "• Qizil badge'lar haqida ogohlantirish",
       getMainMenu(userSession)
     );
   }
@@ -672,8 +549,8 @@ async function showPaymentMenu(chatId, userSession) {
   if (!userSession || userSession.children.length === 0) {
     return bot.sendMessage(
       chatId,
-      "💰 To'lov holatini ko'rish uchun farzandingiz kodini kiriting.\n\n" +
-        '💡 Masalan: 1001',
+      "💳 To'lov holatini ko'rish uchun o'quvchi kodini kiriting:\n\n" +
+        'Masalan: STU001 yoki 1001',
       getMainMenu(userSession)
     );
   }
@@ -699,8 +576,8 @@ async function showScheduleMenu(chatId, userSession) {
   if (!userSession || userSession.children.length === 0) {
     return bot.sendMessage(
       chatId,
-      "📅 Dars jadvalini ko'rish uchun farzandingiz kodini kiriting.\n\n" +
-        '💡 Masalan: 1001',
+      "📚 Dars jadvalini ko'rish uchun o'quvchi kodini kiriting:\n\n" +
+        'Masalan: STU001 yoki 1001',
       getMainMenu(userSession)
     );
   }
@@ -750,6 +627,19 @@ async function showStudentInfo(chatId, studentCode, userSession) {
     const data = await makeApiCall(
       `/bot/student/${studentCode}?parent=${chatId}`
     );
+
+    if (!data.success) {
+      await bot.deleteMessage(chatId, loadingMsg.message_id);
+      return bot.sendMessage(
+        chatId,
+        `❌ ${studentCode} kodli o'quvchi topilmadi.\n\n` +
+          `💡 Iltimos:\n` +
+          `• To'g'ri kodni kiriting (masalan: 1001)\n` +
+          `• Yoki administrator bilan bog'laning`,
+        getMainMenu(userSession)
+      );
+    }
+
     const message = formatStudentInfo(data);
 
     await bot.deleteMessage(chatId, loadingMsg.message_id);
@@ -763,29 +653,6 @@ async function showStudentInfo(chatId, studentCode, userSession) {
         `• To'g'ri kodni kiriting (masalan: 1001)\n` +
         `• Yoki administrator bilan bog'laning`,
       getMainMenu(userSession)
-    );
-  }
-}
-
-async function showStudentGrades(chatId, studentCode) {
-  try {
-    const data = await makeApiCall(`/bot/student/${studentCode}/grades`);
-    const message = formatDailyGrades(data.grades);
-    return bot.sendMessage(chatId, message);
-  } catch (error) {
-    return bot.sendMessage(chatId, `❌ Baholar yuklanmadi: ${error.message}`);
-  }
-}
-
-async function showStudentHomework(chatId, studentCode) {
-  try {
-    const data = await makeApiCall(`/bot/student/${studentCode}/homework`);
-    const message = formatHomework(data.homework);
-    return bot.sendMessage(chatId, message);
-  } catch (error) {
-    return bot.sendMessage(
-      chatId,
-      `❌ Uy vazifalari yuklanmadi: ${error.message}`
     );
   }
 }
